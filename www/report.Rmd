@@ -1,0 +1,609 @@
+---
+title: "Laporan_INFRASEKA"
+author: "Developer INFRASEKA"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+  word_document:
+    toc: true
+    toc_depth: 3
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(htmltools)
+```
+```{r}
+params <- list(report_data = NULL) 
+```
+
+## Pendahuluan
+
+Dokumen ini menyajikan hasil analisis statistik terkait tingkat kemiskinan dengan berbagai variabel terkait. Analisis meliputi uji beda rata-rata, uji proporsi, uji varians, ANOVA, dan model regresi. Laporan ini bersifat dinamis dan mencerminkan analisis yang terakhir kali dijalankan oleh pengguna di dashboard.
+
+## Analisis Uji Beda Rata-Rata (Uji-t)
+```{r}
+# Memuat data hasil uji beda rata-rata dari parameter
+mean_diff_res <- params$report_data$mean_diff_result
+```
+```{r}
+r if (!is.null(mean_diff_res)) {
+```
+
+### Ringkasan Uji Beda Rata-Rata
+
+Uji beda rata-rata (Uji-t) dilakukan untuk membandingkan rata-rata tingkat kemiskinan (POVERTY) antara dua kelompok yang dibentuk berdasarkan median variabel r mean_diff_res$selected_var. Variabel r mean_diff_res$selected_var dibagi menjadi:
+
+Kelompok Rendah: Nilai variabel 
+le r round(mean_diff_res$median_val, 2)
+
+Kelompok Tinggi: Nilai variabel  r round(mean_diff_res$median_val, 2)
+
+## Hasil Uji T
+```{r}
+if (!is.null(mean_diff_res$test_object)) {
+  cat("```\n")
+  print(mean_diff_res$test_object)
+  cat("\n```\n")
+} else {
+  cat("Hasil uji-t tidak tersedia.\n")
+}
+```
+
+## Deskripsi Kelompok
+```{r}
+if (!is.null(mean_diff_res$summary_groups)) {
+  knitr::kable(mean_diff_res$summary_groups, 
+               caption = "Ringkasan Statistik Kelompok Tingkat Kemiskinan",
+               format = "html") # Pastikan format HTML untuk tampilan di Rmd HTML
+} else {
+  cat("Ringkasan kelompok tidak tersedia.\n")
+}
+```
+
+# Plot Boxplot
+```{r}
+if (!is.null(mean_diff_res$plot_data) && !is.null(mean_diff_res$selected_var)) {
+  # Re-create Group variable if plot_data is just the raw df_temp.
+  # Ensure the Group variable is correctly formed as in Shiny server.
+  # This makes the RMD self-contained for plotting.
+  selected_var_md <- mean_diff_res$selected_var
+  median_val_md <- mean_diff_res$median_val
+  
+  plot_data_md <- mean_diff_res$plot_data # Ini adalah df_temp asli
+  group1_name_internal_md <- paste0("Rendah ", selected_var_md)
+  group2_name_internal_md <- paste0("Tinggi ", selected_var_md)
+  plot_data_md$Group <- ifelse(plot_data_md[[selected_var_md]] <= median_val_md, group1_name_internal_md, group2_name_internal_md)
+  
+  ggplot(plot_data_md, aes_string(x = "Group", y = "POVERTY", fill = "Group")) +
+    geom_boxplot() +
+    labs(title = paste("Distribusi Tingkat Kemiskinan (POVERTY) Berdasarkan Kategori ", selected_var_md),
+         x = paste0("Kategori ", selected_var_md), y = "Tingkat Kemiskinan (POVERTY)") +
+    theme_minimal() +
+    theme(legend.position = "none")
+} else {
+  cat("Plot uji beda rata-rata tidak tersedia.\n")
+}
+```
+
+## Interpretasi Uji Beda Rata-Rata
+`r { # Menggunakan blok R untuk menghasilkan narasi HTML
+if (!is.null(mean_diff_res$test\_object)) {
+ttest\_result \<- mean\_diff\_res$test_object
+summary_groups <- mean_diff_res$summary\_groups
+selected\_var \<- mean\_diff\_res$selected_var
+median_val <- mean_diff_res$median_val
+
+```{r}
+p_value_t <- ttest_result$p.value
+test_statistic_t <- ttest_result$statistic
+df_t <- ttest_result$parameter
+alpha <- 0.05
+
+# Ambil nama kelompok dan rata-rata POVERTY mereka
+group1_name_display <- paste0("Kelompok Rendah ", selected_var, " (nilai ≤ ", round(median_val, 2), ")")
+group2_name_display <- paste0("Kelompok Tinggi ", selected_var, " (nilai > ", round(median_val, 2), ")")
+
+# Perlu diperhatikan bahwa di summary_groups, nama grup mungkin sudah disesuaikan
+# Cari nama grup yang sesuai dengan yang dibuat di server
+group1_internal_name <- paste0("Rendah ", selected_var)
+group2_internal_name <- paste0("Tinggi ", selected_var)
+
+mean_poverty_group1 <- summary_groups$Mean_Poverty[summary_groups$Group == group1_internal_name]
+mean_poverty_group2 <- summary_groups$Mean_Poverty[summary_groups$Group == group2_internal_name]
+
+kesimpulan_t <- ""
+makna_t <- ""
+
+if (length(mean_poverty_group1) == 0 || is.na(mean_poverty_group1)) mean_poverty_group1 <- "N/A"
+if (length(mean_poverty_group2) == 0 || is.na(mean_poverty_group2)) mean_poverty_group2 <- "N/A"
+
+if (p_value_t < alpha) {
+  kesimpulan_t <- "Tolak Hipotesis Nol (H₀)"
+  makna_t <- paste0("Ini berarti ada <b>perbedaan rata-rata tingkat kemiskinan (POVERTY) yang signifikan secara statistik</b> antara ", group1_name_display, " (rata-rata kemiskinan: ", round(mean_poverty_group1, 2), "%) dan ", group2_name_display, " (rata-rata kemiskinan: ", round(mean_poverty_group2, 2), "%).")
+} else {
+  kesimpulan_t <- "Gagal Tolak Hipotesis Nol (H₀)"
+  makna_t <- paste0("Ini berarti <b>tidak ada perbedaan rata-rata tingkat kemiskinan (POVERTY) yang signifikan secara statistik</b> antara ", group1_name_display, " (rata-rata kemiskinan: ", round(mean_poverty_group1, 2), "%) dan ", group2_name_display, " (rata-rata kemiskinan: ", round(mean_poverty_group2, 2), "%).")
+}
+
+narasi <- paste0(
+  "<p>Uji-t digunakan untuk mengevaluasi apakah ada perbedaan signifikan dalam rata-rata tingkat kemiskinan (POVERTY) antara dua kelompok yang dibentuk berdasarkan median variabel '", selected_var, "'.</p>",
+  "<ul>",
+  "<li><b>Variabel Dependen:</b> Tingkat Kemiskinan (POVERTY)</li>",
+  "<li><b>Variabel Independen (Kategorisasi):</b> '", selected_var, "' dibagi menjadi kelompok Rendah (nilai $\\le$ ", round(median_val, 2), ") dan Tinggi (nilai $>$ ", round(median_val, 2), ").</li>",
+  "<li><b>Hipotesis Nol (H₀):</b> Tidak ada perbedaan rata-rata tingkat kemiskinan yang signifikan antara kelompok rendah dan tinggi '", selected_var, "'.</li>",
+  "<li><b>Hipotesis Alternatif (H₁):</b> Ada perbedaan rata-rata tingkat kemiskinan yang signifikan antara kelompok rendah dan tinggi '", selected_var, "'.</li>",
+  "<li><b>Nilai Statistik Uji (t):</b> ", round(test_statistic_t, 3), "</li>",
+  "<li><b>Derajat Kebebasan (df):</b> ", df_t, "</li>",
+  "<li><b>p-value:</b> ", round(p_value_t, 4), "</li>",
+  "</ul>",
+  "<p><b>Keputusan:</b> ", kesimpulan_t, "</p>",
+  "<p>", makna_t, "</p>",
+  "<p>Hasil ini membantu memahami apakah tingkat kemiskinan berbeda secara signifikan antara daerah dengan nilai '", selected_var, "' yang rendah dan tinggi.</p>"
+)
+HTML(narasi)
+```
+} else {
+HTML("
+
+```{r}
+r } # Akhir dari if (!is.null(mean_diff_res))
+```
+
+## Analisis Uji Proporsi (Chi-Squared)
+```{r}
+# Memuat data hasil uji proporsi dari parameter
+chi_sq_res <- params$report_data$chi_sq_result
+```
+```{r}
+r if (!is.null(chi_sq_res)) {
+```
+
+## Ringkasan Uji Proporsi
+
+Uji Chi-squared digunakan untuk mengevaluasi apakah ada hubungan yang signifikan antara dua variabel kategori: Kelompok Kemiskinan (Rendah/Tinggi) dan Kategori variabel r chi_sq_res$selected_var (Di Atas/Di Bawah Ambang Batas r chi_sq_res$threshold%).
+
+## Tabel Kontingensi
+
+Tabel kontingensi berikut menunjukkan distribusi frekuensi bersama kedua variabel:
+
+```{r}
+if (!is.null(chi_sq_res$contingency_table)) {
+  cat("```\n")
+  print(chi_sq_res$contingency_table)
+  cat("\n```\n")
+} else {
+  cat("Tabel kontingensi tidak tersedia.\n")
+}
+```
+
+## Hasil Uji Chi-Square
+```{r}
+if (!is.null(chi_sq_res$test_object)) {
+  cat("```\n")
+  print(chi_sq_res$test_object)
+  cat("\n```\n")
+} else {
+  cat("Hasil uji Chi-squared tidak tersedia.\n")
+}
+```
+
+## Interpretasi Uji Chi-squared
+`r { # Menggunakan blok R untuk menghasilkan narasi HTML
+if (!is.null(chi_sq_res$test\_object)) {
+chi\_sq\_test \<- chi\_sq\_res$test_object
+selected_var <- chi_sq_res$selected\_var
+threshold \<- chi\_sq\_res$threshold
+
+```{r}
+p_value_chi <- chi_sq_test$p.value
+test_statistic_chi <- chi_sq_test$statistic
+df_chi <- chi_sq_test$parameter
+alpha <- 0.05
+
+kesimpulan_chi <- ""
+makna_chi <- ""
+
+if (p_value_chi < alpha) {
+  kesimpulan_chi <- "Tolak Hipotesis Nol (H₀)"
+  makna_chi <- paste0("Ini berarti ada <b>hubungan yang signifikan secara statistik</b> antara kelompok kemiskinan (Rendah/Tinggi) dan kategori variabel '", selected_var, "' (Di Atas/Di Bawah Ambang Batas ", threshold, "%). Dengan kata lain, proporsi distrik yang berada di atas atau di bawah ambang batas ", selected_var, " <b>berbeda secara signifikan</b> antara kelompok kemiskinan rendah dan tinggi.")
+} else {
+  kesimpulan_chi <- "Gagal Tolak Hipotesis Nol (H₀)"
+  makna_chi <- paste0("Ini berarti <b>tidak ada hubungan yang signifikan secara statistik</b> antara kelompok kemiskinan (Rendah/Tinggi) dan kategori variabel '", selected_var, "' (Di Atas/Di Bawah Ambang Batas ", threshold, "%). Dengan kata lain, proporsi distrik yang berada di atas atau di bawah ambang batas ", selected_var, " <b>tidak berbeda secara signifikan</b> antara kelompok kemiskinan rendah dan tinggi.")
+}
+
+narasi <- paste0(
+  "<p>Uji Chi-squared digunakan untuk mengevaluasi apakah ada hubungan yang signifikan antara dua variabel kategori.</p>",
+  "<ul>",
+  "<li><b>Variabel yang Diuji:</b> Kelompok Kemiskinan (Rendah/Tinggi) dan Kategori '", selected_var, "' (Di Atas/Di Bawah Ambang Batas ", threshold, "%)</li>",
+  "<li><b>Hipotesis Nol (H₀):</b> Kedua variabel bersifat independen (tidak ada hubungan).</li>",
+  "<li><b>Hipotesis Alternatif (H₁):</b> Kedua variabel tidak independen (ada hubungan).</li>",
+  "<li><b>Nilai Statistik Uji (Chi-squared):</b> ", round(test_statistic_chi, 3), "</li>",
+  "<li><b>Derajat Kebebasan (df):</b> ", df_chi, "</li>",
+  "<li><b>p-value:</b> ", round(p_value_chi, 4), "</li>",
+  "</ul>",
+  "<p><b>Keputusan:</b> ", kesimpulan_chi, "</p>",
+  "<p>", makna_chi, "</p>",
+  "<p>Hasil ini membantu memahami apakah status kemiskinan suatu distrik berhubungan dengan proporsi variabel lain yang berada di atas atau di bawah ambang batas tertentu.</p>"
+)
+HTML(narasi)
+```
+
+} else {
+HTML("
+
+```{r}
+r } # Akhir dari if (!is.null(chi_sq_res))
+```
+
+## Analisis Uji Varians (Uji F)
+```{r}
+# Memuat data hasil uji varians dari parameter
+var_test_res <- params$report_data$var_test_result
+```
+```{r}
+r if (!is.null(var_test_res)) {
+```
+
+## Ringkasan Uji Varians
+
+Uji F varians digunakan untuk mengevaluasi apakah ada perbedaan signifikan dalam keragaman (varians) variabel r var_test_res$selected_var_for_test antara dua kelompok yang dibentuk berdasarkan variabel r var_test_res$grouping_var.
+
+## Hasil Uji F
+```{r}
+if (!is.null(var_test_res$test_object)) {
+  cat("```\n")
+  print(var_test_res$test_object)
+  cat("\n```\n")
+} else {
+  cat("Hasil uji F tidak tersedia.\n")
+}
+```
+
+## Deskripsi Varians antar Kelompok
+```{r}
+if (!is.null(var_test_res$summary_groups)) {
+  knitr::kable(var_test_res$summary_groups, 
+               caption = "Ringkasan Statistik Varians Kelompok",
+               format = "html")
+} else {
+  cat("Ringkasan varians kelompok tidak tersedia.\n")
+}
+```
+
+## Interpretasi Uji Varians
+
+`r { # Menggunakan blok R untuk menghasilkan narasi HTML
+if (!is.null(var_test_res$test\_object)) {
+f\_test\_result \<- var\_test\_res$test_object
+summary_groups <- var_test_res$summary\_groups
+selected\_var\_for\_test \<- var\_test\_res$selected_var_for_test
+grouping_var <- var_test_res$grouping_var
+
+```{r}
+p_value_var <- f_test_result$p.value
+test_statistic_var <- f_test_result$statistic
+df1_var <- f_test_result$parameter[1]
+df2_var <- f_test_result$parameter[2]
+alpha <- 0.05
+
+# Ambil nama kelompok dan variansnya
+group1_name <- summary_groups$Group[1]
+group2_name <- summary_groups$Group[2]
+var_group1 <- summary_groups$Variance_Var[1]
+var_group2 <- summary_groups$Variance_Var[2]
+
+# Penanganan jika N/A atau grup tidak lengkap
+if (length(group1_name) == 0 || is.na(group1_name)) group1_name <- "Kelompok 1"
+if (length(group2_name) == 0 || is.na(group2_name)) group2_name <- "Kelompok 2"
+if (length(var_group1) == 0 || is.na(var_group1)) var_group1 <- "N/A"
+if (length(var_group2) == 0 || is.na(var_group2)) var_group2 <- "N/A"
+
+kesimpulan_var <- ""
+makna_var <- ""
+
+if (p_value_var < alpha) {
+  kesimpulan_var <- "Tolak Hipotesis Nol (H₀)"
+  makna_var <- paste0("Ini berarti ada <b>perbedaan varians yang signifikan secara statistik</b> untuk variabel '", selected_var_for_test, "' antara kelompok '", group1_name, "' (Varians: ", round(var_group1, 2), ") dan kelompok '", group2_name, "' (Varians: ", round(var_group2, 2), ")." )
+} else {
+  kesimpulan_var <- "Gagal Tolak Hipotesis Nol (H₀)"
+  makna_var <- paste0("Ini berarti <b>tidak ada perbedaan varians yang signifikan secara statistik</b> untuk variabel '", selected_var_for_test, "' antara kelompok '", group1_name, "' (Varians: ", round(var_group1, 2), ") dan kelompok '", group2_name, "' (Varians: ", round(var_group2, 2), ")." )
+}
+
+narasi <- paste0(
+  "<p>Uji F varians digunakan untuk mengevaluasi apakah ada perbedaan signifikan dalam keragaman (varians) variabel '", selected_var_for_test, "' antara dua kelompok yang dibentuk berdasarkan '", grouping_var, "'.</p>",
+  "<ul>",
+  "<li><b>Hipotesis Nol (H₀):</b> Varians kedua kelompok adalah sama.</li>",
+  "<li><b>Hipotesis Alternatif (H₁):</b> Varians kedua kelompok tidak sama.</li>",
+  "<li><b>Nilai Statistik Uji (F):</b> ", round(test_statistic_var, 3), "</li>",
+  "<li><b>Derajat Kebebasan (df1, df2):</b> (", df1_var, ", ", df2_var, ")</li>",
+  "<li><b>p-value:</b> ", round(p_value_var, 4), "</li>",
+  "</ul>",
+  "<p><b>Keputusan:</b> ", kesimpulan_var, "</p>",
+  "<p>", makna_var, "</p>",
+  "<p>Memahami apakah varians antar kelompok berbeda penting untuk validitas uji statistik lainnya (misalnya, asumsi homoskedastisitas pada uji-t dan ANOVA).</p>"
+)
+HTML(narasi)
+```
+
+} else {
+HTML("
+
+Hasil Uji Varians tidak tersedia. Silakan jalankan analisis di dashboard.
+
+```{r}
+r } # Akhir dari if (!is.null(var_test_res))
+```
+
+## Analisis ANOVA
+```{r}
+# Memuat data hasil ANOVA dari parameter
+anova_res <- params$report_data$anova_result
+```
+```{r}
+r if (!is.null(anova_res)) {
+```
+
+## Ringkasan ANOVA
+
+Analisis Varians (ANOVA) digunakan untuk mengevaluasi apakah ada perbedaan signifikan dalam rata-rata tingkat kemiskinan (POVERTY) antara r anova_res$num_groups kelompok yang dibentuk berdasarkan kategori variabel r anova_res$selected_var.
+
+## Hasil ANOVA
+```{r}
+if (!is.null(anova_res$summary_anova)) {
+  cat("```\n")
+  print(anova_res$summary_anova)
+  cat("\n```\n")
+} else {
+  cat("Hasil ANOVA tidak tersedia.\n")
+}
+```
+
+## BoxPlot ANOVA
+```{r}
+if (!is.null(anova_res$plot_data) && !is.null(anova_res$selected_var)) {
+  # Re-create CategorizedVar for plotting in Rmd to ensure consistency
+  plot_data_anova <- anova_res$plot_data
+  selected_var_anova <- anova_res$selected_var
+  num_groups_anova <- anova_res$num_groups
+  
+  # The cut() logic must be consistent with how it's done in the server
+  breaks_anova_plot <- unique(quantile(plot_data_anova[[selected_var_anova]], probs = seq(0, 1, by = 1/num_groups_anova), na.rm = TRUE))
+  
+  # Hanya buat CategorizedVar jika breaks_anova_plot cukup untuk memotong
+  if (length(breaks_anova_plot) >= (num_groups_anova + 1)) {
+    plot_data_anova$CategorizedVar <- cut(plot_data_anova[[selected_var_anova]],
+                                          breaks = breaks_anova_plot,
+                                          include.lowest = TRUE,
+                                          labels = paste0("Kelompok ", 1:num_groups_anova))
+    
+    # Hanya plot jika CategorizedVar berhasil dibuat dengan jumlah level yang cukup
+    if (nlevels(plot_data_anova$CategorizedVar) >= num_groups_anova) {
+      ggplot(plot_data_anova, aes_string(x = "CategorizedVar", y = "POVERTY", fill = "CategorizedVar")) +
+        geom_boxplot() +
+        labs(title = paste("Distribusi Kemiskinan Berdasarkan Kategori", selected_var_anova),
+             x = paste0("Kategori ", selected_var_anova), y = "Tingkat Kemiskinan (POVERTY)") +
+        theme_minimal() +
+        theme(legend.position = "none")
+    } else {
+      cat("Plot ANOVA tidak dapat dibuat karena tidak cukup kelompok unik yang terbentuk.\n")
+    }
+  } else {
+    cat("Plot ANOVA tidak dapat dibuat karena tidak cukup batas unik untuk kategorisasi.\n")
+  }
+
+} else {
+  cat("Plot ANOVA tidak tersedia.\n")
+}
+```
+
+## Interpretasi Uji ANOVA
+
+`r { # Menggunakan blok R untuk menghasilkan narasi HTML
+if (!is.null(anova_res$test\_object)) {
+summary\_anova \<- anova\_res$summary_anova
+selected_var <- anova_res$selected\_var
+num\_groups \<- anova\_res$num_groups
+group_names <- anova_res$group_names
+
+```{r}
+p_value_anova <- summary_anova[[1]]$`Pr(>F)`[1]
+test_statistic_anova <- summary_anova[[1]]$`F value`[1]
+df1_anova <- summary_anova[[1]]$Df[1]
+df2_anova <- summary_anova[[1]]$Df[2]
+alpha <- 0.05
+
+kesimpulan_anova <- ""
+makna_anova <- ""
+
+if (p_value_anova < alpha) {
+  kesimpulan_anova <- "Tolak Hipotesis Nol (H₀)"
+  makna_anova <- paste0("Ini berarti setidaknya ada <b>satu pasang kelompok</b> di antara ", paste(group_names, collapse = ", "), " yang memiliki <b>perbedaan rata-rata tingkat kemiskinan (POVERTY) yang signifikan secara statistik</b>. Diperlukan uji post-hoc (misalnya uji Tukey HSD) untuk menentukan pasangan kelompok mana yang berbeda secara spesifik.")
+} else {
+  kesimpulan_anova <- "Gagal Tolak Hipotesis Nol (H₀)"
+  makna_anova <- paste0("Ini berarti <b>tidak ada perbedaan rata-rata tingkat kemiskinan (POVERTY) yang signifikan secara statistik</b> di antara semua kelompok (", paste(group_names, collapse = ", "), ").")
+}
+
+narasi <- paste0(
+  "<p>Analisis Varians (ANOVA) digunakan untuk mengevaluasi apakah ada perbedaan signifikan dalam rata-rata tingkat kemiskinan (POVERTY) antara ", num_groups, " kelompok yang dibentuk berdasarkan kategori variabel '", selected_var, "'.</p>",
+  "<ul>",
+  "<li><b>Hipotesis Nol (H₀):</b> Rata-rata tingkat kemiskinan dari semua kelompok (", paste(group_names, collapse = ", "), ") adalah sama.</li>",
+  "<li><b>Hipotesis Alternatif (H₁):</b> Setidaknya ada satu pasang kelompok yang memiliki rata-rata tingkat kemiskinan yang berbeda.</li>",
+  "<li><b>Nilai Statistik Uji (F):</b> ", round(test_statistic_anova, 3), "</li>",
+  "<li><b>Derajat Kebebasan (df1, df2):</b> (", df1_anova, ", ", df2_anova, ")</li>",
+  "<li><b>p-value:</b> ", round(p_value_anova, 4), "</li>",
+  "</ul>",
+  "<p><b>Keputusan:</b> ", kesimpulan_anova, "</p>",
+  "<p>", makna_anova, "</p>",
+  "<p>ANOVA adalah alat yang ampuh untuk membandingkan beberapa kelompok sekaligus, menghindari masalah uji-t berulang dan inflasi Tipe I Error.</p>"
+)
+HTML(narasi)
+```
+
+} else {
+HTML("
+
+```{r}
+r } # Akhir dari if (!is.null(anova_res))
+```
+
+## Analisis Regresi
+```{r}
+# Memuat data hasil regresi dari parameter
+regression_res <- params$report_data$regression_result
+```
+```{r}
+r if (!is.null(regression_res)) {
+```
+
+## Ringkasan Model Regresi
+```{r}
+Model regresi linier telah dijalankan dengan log(POVERTY) sebagai variabel dependen dan RENTED, NOSEWER, TAPWATER, NOELECTRIC sebagai variabel independen.
+```
+
+## Ringkasan Statistik Model
+```{r}
+if (!is.null(regression_res)) {
+  cat("```\n")
+  print(summary(regression_res))
+  cat("\n```\n")
+} else {
+  cat("Ringkasan model regresi tidak tersedia.\n")
+}
+```
+
+## Interpretasi Koefisien Regresi
+
+`r { # Menggunakan blok R untuk menghasilkan narasi HTML
+if (!is.null(regression_res)) {
+model_obj <- regression_res
+model_summary <- summary(model_obj)
+coefs <- as.data.frame(model_summary$coefficients)
+
+```{r}
+variabel_labels <- list(
+  "RENTED" = "Rumah Tangga yang Menyewa Rumah",
+  "NOSEWER" = "Rumah Tangga yang Tidak Memiliki Saluran Pembuangan Air Limbah",
+  "TAPWATER" = "Rumah Tangga yang Mendapat Akses Air Bersih",
+  "NOELECTRIC" = "Rumah Tangga yang Tidak Menggunakan Listrik sebagai Sumber Penerangan"
+)
+
+narasi_reg <- "<p>Berikut adalah interpretasi koefisien-koefisien signifikan pada tingkat signifikansi umum (alpha = 0.05):</p><ul>"
+
+# Interpretasi Intersep
+if ("(Intercept)" %in% rownames(coefs)) {
+  intercept_val <- coefs["(Intercept)", "Estimate"]
+  if(is.finite(intercept_val)) {
+    narasi_reg <- paste0(narasi_reg, "<li><b>Intersep (Konstanta):</b> <code>", round(intercept_val, 4), "</code> (setara dengan POVERTY sekitar ", round(exp(intercept_val), 2), "% ketika semua prediktor nol).</li>")
+  }
+}
+
+# Interpretasi Variabel Independen
+for (i in 2:nrow(coefs)) {
+  var_name <- rownames(coefs)[i]
+  # Pastikan kolom yang diperlukan ada sebelum diakses
+  if (!all(c("Estimate", "Pr(>|t|)") %in% names(coefs))) {
+    next
+  }
+
+  estimate <- coefs[var_name, "Estimate"]
+  p_value <- coefs[var_name, "Pr(>|t|)"]
+  label <- ifelse(var_name %in% names(variabel_labels), variabel_labels[[var_name]], var_name)
+  
+  significance_star <- ""
+  is_significant <- FALSE
+  if (p_value < 0.001) {
+    significance_star <- "***"
+    is_significant <- TRUE
+  } else if (p_value < 0.01) {
+    significance_star <- "**"
+    is_significant <- TRUE
+  } else if (p_value < 0.05) {
+    significance_star <- "*"
+    is_significant <- TRUE
+  }
+
+  narasi_reg <- paste0(narasi_reg, "<li><b>", label, "</b> (Koefisien: <code>", round(estimate, 4), "</code>, p-value: <code>", format.pval(p_value, digits = 4), significance_star, "): ")
+  
+  if (is.finite(estimate)) {
+    if (is_significant) {
+      # Interpretasi untuk transformasi log pada Y: perubahan persentase pada Y
+      # Untuk perubahan 1 unit pada X, Y berubah sekitar (exp(beta) - 1) * 100%
+      percent_change <- (exp(estimate) - 1) * 100
+      direction <- ifelse(estimate > 0, "meningkatkan", "menurunkan")
+      narasi_reg <- paste0(narasi_reg, 
+                           "Setiap peningkatan satu unit pada '", label, "' secara statistik signifikan ", direction, 
+                           " tingkat kemiskinan (POVERTY) sekitar <b>", abs(round(percent_change, 2)), "%</b>, dengan asumsi variabel lain konstan."
+                           )
+    } else {
+      narasi_reg <- paste0(narasi_reg, 
+                           "Variabel ini <b>tidak memiliki pengaruh yang signifikan secara statistik</b> terhadap tingkat kemiskinan (POVERTY), dengan asumsi variabel lain konstan."
+                           )
+    }
+  } else {
+    narasi_reg <- paste0(narasi_reg, "Koefisien tidak valid (NA/Inf).")
+  }
+  narasi_reg <- paste0(narasi_reg, "</li>")
+}
+narasi_reg <- paste0(narasi_reg, "</ul>")
+
+# Statistik Model Keseluruhan
+narasi_reg <- paste0(narasi_reg, "<h4>Statistik Model Keseluruhan:</h4><ul>")
+r_squared <- model_summary$r.squared
+adj_r_squared <- model_summary$adj.r.squared
+
+narasi_reg <- paste0(narasi_reg, "<li><b>R-squared:</b> <code>", round(r_squared, 4), "</code></li>")
+narasi_reg <- paste0(narasi_reg, "<li><b>Adjusted R-squared:</b> <code>", round(adj_r_squared, 4), "</code></li>")
+
+if (!is.null(model_summary$fstatistic) && length(model_summary$fstatistic) == 3) {
+  f_val <- model_summary$fstatistic[1]
+  df1_f <- model_summary$fstatistic[2]
+  df2_f <- model_summary$fstatistic[3]
+  p_f_val <- pf(f_val, df1_f, df2_f, lower.tail = FALSE)
+  narasi_reg <- paste0(narasi_reg, "<li><b>F-statistic:</b> <code>", round(f_val, 2), "</code> (p-value: <code>", format.pval(p_f_val, digits = 4), "</code>)</li>")
+}
+narasi_reg <- paste0(narasi_reg, "</ul>")
+
+narasi_reg <- paste0(narasi_reg, "<p><i>Interpretasi R-squared:</i> Sekitar ", round(r_squared * 100, 2), "% variasi dalam log(POVERTY) dapat dijelaskan oleh variabel-variabel independen dalam model.</p>")
+if (!is.null(model_summary$fstatistic) && length(model_summary$fstatistic) == 3) {
+  if (p_f_val < 0.05) {
+    narasi_reg <- paste0(narasi_reg, "<p><i>Interpretasi F-statistic:</i> Nilai F-statistic yang signifikan menunjukkan bahwa setidaknya ada satu variabel independen dalam model yang secara signifikan memprediksi log(POVERTY) secara keseluruhan.</p>")
+  } else {
+    narasi_reg <- paste0(narasi_reg, "<p><i>Interpretasi F-statistic:</i> Nilai F-statistic tidak signifikan, menunjukkan bahwa variabel independen secara keseluruhan mungkin tidak secara signifikan memprediksi log(POVERTY).</p>")
+  }
+}
+
+
+HTML(narasi_reg)
+```
+
+} else {
+HTML("
+
+```{r}
+r } # Akhir dari if (!is.null(regression_res))
+```
+
+```{r}
+r if (is.null(mean_diff_res) && is.null(chi_sq_res) && is.null(var_test_res) && is.null(anova_res) && is.null(regression_res)) {
+```
+
+## Tidak Ada Data Analisis
+ 
+Tidak ada analisis yang dijalankan atau hasilnya tidak tersedia untuk disertakan dalam laporan ini. Silakan kembali ke dashboard dan jalankan analisis yang diinginkan.
+
+```{r}
+r }
+```
+
