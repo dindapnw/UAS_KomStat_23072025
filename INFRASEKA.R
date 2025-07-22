@@ -14,8 +14,6 @@ library(rmarkdown)
 library(knitr)
 library(webshot2)
 library(htmlwidgets) 
-library(rsconnect)
-rsconnect::writeManifest()
 
 # Load data
 data <- read.csv("www/data.csv")
